@@ -101,15 +101,17 @@ class User(object):
         return notes
 
 
+#eventually, connect to a live feed, but for now just fake it...
 def slurpDB():
-    """ grab latest data from mongodb """
-    data =  [doc for doc in db.traffic.find()]
+    """ grab latest data from mongodb (standing in for a live feed """
+    data =  [doc for doc in db[COLLECTION].find()]
     # parse the timestamps
     for d in data:
         d['updated_at'] = dateutil.parser.parse(d['updated_at'])
     return data
 
 
+# more feed fakery
 def slurp():
     #   with urllib2.urlopen("http://example.com/foo/bar") as resp:
     #       foo = resp.read()
@@ -127,10 +129,14 @@ def slurp():
 def describeNode(node_id):
     """ return a nice human-readable description of a node """
 
-    # perform clever lookup against OSM api:
+    # perform clever lookup against OSM api, get intersecting ways or
+    # landmarks build a discription accordingly.
+    # Maybe handcraft some specific descriptions for places that have good
+    # local/non-obvious names, or for places where the generated descriptions
+    # fall down...
     foo = {
-        1: "Corner of First & Thingy",
-        2: "Credability St Pedestrian crossing",
+        1: "Intersection of First & Whatsit",
+        2: "Credability St. Bus Stop",
         3: "Intersection of 3rd and Main",
         4: "Intersection of Fourth and Forth"
     }
@@ -145,21 +151,35 @@ alice = User("Alice", [N(id) for id in [1,2,3,4,5]])
 bob = User("Bob", [N(id) for id in [4,5,6,7,8,9,10]])
 users = [alice,bob]
 
+DBNAME = "chchroads"
+COLLECTION = "traffic"
 conn = MongoClient()
-db = conn['foooooooook']
+db = conn[DBNAME]
 
 
 def main():
-    foo = slurp()
-#    pprint( foo)
 
+    # show a summary of the users in the system
+    print("\n")
     for u in users:
-#        print(u)
-        notes = u.checkum(foo)
-        if notes:
-            print( "ALERT! " + u.name + ":")
-            for n in notes:
-                print("  " + n)
+        print "\n" + u.name + ":"
+        for node_id in u.nodes:
+            print( "  " + describeNode(node_id))
+
+    while 1:
+        # in real system, users would have specific time intervals which
+        # they'd be interested in. But for now...
+        time.sleep(10)
+
+        # grab incoming 'live' data and compare against users
+        foo = slurpDB()
+
+        for u in users:
+            notes = u.checkum(foo)
+            if notes:
+                print( "ALERT for " + u.name + ":")
+                for n in notes:
+                    print("  " + n)
 
 if __name__ == "__main__":
     main()
